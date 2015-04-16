@@ -8,18 +8,156 @@ output:
 
 ## Loading and preprocessing the data
 
+Firstly we will load the data from the repository and prepare the data into a format suitable for analysis.
+``` {r}
+setwd("C:/Users/steven-j.yu/Downloads/Steven's/studying/Data Science - 05 Reproducible Research/Peer assignment 1")
+activity_monitoring_data <- read.csv("activity.csv",na.strings="NA")
+```
+
+And then the date coloume will be transferred into date format so as to be easier to fit analysis on.  
+Also, the original data will be split into two parts: one with na data only and one without na data.
+```{r}
+activity_monitoring_data$date <- as.Date(activity_monitoring_data$date,"%Y-%m-%d")
+activity_monitoring_data_nas <- subset(activity_monitoring_data,is.na(activity_monitoring_data$steps))
+activity_monitoring_data_no_nas <- activity_monitoring_data[apply(activity_monitoring_data, 1, function(x)!any(is.na(x))), , drop=F] 
+```
 
 
 ## What is mean total number of steps taken per day?
 
+After adjusting the raw data, we will firstly calculate the total number of steps taken per day and make a histogram.  
+Mean and median of total number of steps per day will be calculated at the same time.
+```{r,echo=FALSE}
+#1.Calculate the total number of steps taken per day
+library("sqldf")
+activity_monitoring_data_sum_by_day <-sqldf("select sum(steps) as Steps_by_day,date from activity_monitoring_data group by date")
+activity_monitoring_data_mean_by_day <-sqldf("select avg(steps) as Steps_by_day,date from activity_monitoring_data_no_nas group by date")
 
+#2.Make a histogram of the total number of steps taken each day
+hist(as.numeric(activity_monitoring_data_sum_by_day$Steps_by_day), xlab = "Steps by day", main = "Histogram of total number of steps taken each day")
+```
+
+```{r, echo=FALSE}
+#3.Calculate and report the mean and median of the total number of steps taken per day
+mean_of_total_no_of_steps_per_day <-mean(as.numeric(activity_monitoring_data_sum_by_day$Steps_by_day),na.rm=TRUE)
+median_of_total_no_of_steps_per_day <-median(as.numeric(activity_monitoring_data_sum_by_day$Steps_by_day),na.rm=TRUE)
+```
+
+The mean of total number of steps per day is `r mean_of_total_no_of_steps_per_day`;   
+The median of total number of steps per day is `r median_of_total_no_of_steps_per_day`.
 
 ## What is the average daily activity pattern?
 
+The average daily activity pattern could be figured out through following plot:
+``` {r, echo=FALSE}
+
+#1.Make a time series plot(i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged 
+#across all days (y-axis)
+activity_monitoring_data_sum_by_interval <-sqldf("select avg(steps) as Avg_steps_by_day,interval from activity_monitoring_data group by interval order by Avg_steps_by_day DESC")
+plot(activity_monitoring_data_sum_by_interval$Avg_steps_by_day,type="l")
+
+
+#2.Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+interval_contains_max_no_of_steps <- activity_monitoring_data_sum_by_interval[1,2]
+
+```
 
 
 ## Imputing missing values
 
+Firstly we will calculate the total number of missing values in the dataset.
+``` {r, echo=FALSE}
+#1. Calculate and report the total number of missing values in the dataset (i.e. the total number of rows with NAs) #############
+count_of_nas <- nrow(activity_monitoring_data_nas)
+```
 
+The number is `r count_of_nas`.
+
+Then we will introduce three methods to fill in the missing values: fill with zero, with mean and with median.
+If fill the missing values with zero, the hist would be:  
+```{r,echo=FALSE}
+#2.1 Replace na with zero
+activity_monitoring_data_nas <- subset(activity_monitoring_data,is.na(activity_monitoring_data$steps))
+activity_monitoring_data_nas[is.na(activity_monitoring_data_nas)] <- 0
+activity_monitoring_data_replace_with_zero <- rbind(activity_monitoring_data_nas, activity_monitoring_data_no_nas)
+activity_monitoring_data_replace_with_zero_sum_by_day <-sqldf("select sum(steps) as Steps_by_day,date from activity_monitoring_data_replace_with_zero group by date")
+hist(as.numeric(activity_monitoring_data_replace_with_zero_sum_by_day$Steps_by_day),xlab = "Steps by day", main = "Histogram of total number of steps taken each day (filled with zero)")
+```
+
+If fill the missing values with mean, the hist would be:  
+``` {r,echo=FALSE}
+#2.2 Replace na with mean by interval
+activity_monitoring_data_nas <- subset(activity_monitoring_data,is.na(activity_monitoring_data$steps))
+activity_monitoring_data_mean_by_interval <-sqldf("select avg(steps) as steps,interval from activity_monitoring_data group by interval")
+activity_monitoring_data_nas_combined_with_mean_by_interval <- sqldf("select * from activity_monitoring_data_nas d left join activity_monitoring_data_mean_by_interval m on d.interval=m.interval")
+activity_monitoring_data_replace_with_interval_mean <- rbind(activity_monitoring_data_nas_combined_with_mean_by_interval[,c(4,2,3)], activity_monitoring_data_no_nas)
+activity_monitoring_data_replace_with_interval_mean_sum_by_day <-sqldf("select sum(steps) as Steps_by_day,date from activity_monitoring_data_replace_with_interval_mean group by date")
+hist(as.numeric(activity_monitoring_data_replace_with_interval_mean_sum_by_day$Steps_by_day),xlab = "Steps by day", main = "Histogram of total number of steps taken each day (filled with mean)")
+```
+
+If fill the missing values with median, the hist would be:  
+```{r,echo=FALSE}
+#2.3 Replace na with median by interval
+activity_monitoring_data_nas <- subset(activity_monitoring_data,is.na(activity_monitoring_data$steps))
+activity_monitoring_data_median_by_interval <-sqldf("select median(steps) as steps,interval from activity_monitoring_data group by interval")
+activity_monitoring_data_nas_combined_with_median_by_interval <- sqldf("select * from activity_monitoring_data_nas d left join activity_monitoring_data_mean_by_interval m on d.interval=m.interval")
+activity_monitoring_data_replace_with_interval_median <- rbind(activity_monitoring_data_nas_combined_with_median_by_interval[,c(4,2,3)], activity_monitoring_data_no_nas)
+activity_monitoring_data_replace_with_interval_median_sum_by_day <-sqldf("select sum(steps) as Steps_by_day,date from activity_monitoring_data_replace_with_interval_median group by date")
+hist(as.numeric(activity_monitoring_data_replace_with_interval_median_sum_by_day$Steps_by_day),xlab = "Steps by day", main = "Histogram of total number of steps taken each day (filled with median)")
+```
+
+Through these three hist, we would find if filled with zeros, there will be a great increase in the first batch (which is mainly contributed by zeros), while if filled with mean or median, the overall figure will not change greatly.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+We will create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day for three filling methods respectively.
+
+For replacement with zero, the plot would be:
+
+```{r, echo=FALSE}
+activity_monitoring_data_replace_with_zero_wkd <- activity_monitoring_data_replace_with_zero
+activity_monitoring_data_replace_with_zero_wkd$weekdays_indicator <- lapply (activity_monitoring_data_replace_with_zero_wkd$date, weekdays)
+activity_monitoring_data_replace_with_zero_wkd$weekdays_indicator <- sub("星期一|星期二|星期三|星期四|星期五","weekday",activity_monitoring_data_replace_with_zero_wkd$weekdays_indicator)
+activity_monitoring_data_replace_with_zero_wkd$weekdays_indicator <- sub("星期六|星期日","weekend",activity_monitoring_data_replace_with_zero_wkd$weekdays_indicator)
+
+activity_monitoring_data_replace_with_zero_wkd_avg_by_interval <- sqldf("select avg(steps) as Steps_by_day,interval,weekdays_indicator from activity_monitoring_data_replace_with_zero_wkd where weekdays_indicator = 'weekday' group by interval")
+activity_monitoring_data_replace_with_zero_wked_avg_by_interval <- sqldf("select avg(steps) as Steps_by_day,interval,weekdays_indicator from activity_monitoring_data_replace_with_zero_wkd where weekdays_indicator = 'weekend' group by interval")
+activity_monitoring_data_replace_with_zero_wkd_wked <- rbind (activity_monitoring_data_replace_with_zero_wkd_avg_by_interval,activity_monitoring_data_replace_with_zero_wked_avg_by_interval)
+
+library(lattice)
+xyplot(Steps_by_day~interval|weekdays_indicator,type="l",layout=c(1,2),col.line=3,data=activity_monitoring_data_replace_with_zero_wkd_wked)
+```
+
+
+For replacement with mean, the plot would be:
+
+```{r, echo=FALSE}
+activity_monitoring_data_replace_with_mean_wkd <- activity_monitoring_data_replace_with_interval_mean
+activity_monitoring_data_replace_with_mean_wkd$weekdays_indicator <- lapply (activity_monitoring_data_replace_with_mean_wkd$date, weekdays)
+activity_monitoring_data_replace_with_mean_wkd$weekdays_indicator <- sub("星期一|星期二|星期三|星期四|星期五","weekday",activity_monitoring_data_replace_with_mean_wkd$weekdays_indicator)
+activity_monitoring_data_replace_with_mean_wkd$weekdays_indicator <- sub("星期六|星期日","weekend",activity_monitoring_data_replace_with_mean_wkd$weekdays_indicator)
+
+activity_monitoring_data_replace_with_mean_wkd_avg_by_interval <- sqldf("select avg(steps) as Steps_by_day,interval,weekdays_indicator from activity_monitoring_data_replace_with_mean_wkd where weekdays_indicator = 'weekday' group by interval")
+activity_monitoring_data_replace_with_mean_wked_avg_by_interval <- sqldf("select avg(steps) as Steps_by_day,interval,weekdays_indicator from activity_monitoring_data_replace_with_mean_wkd where weekdays_indicator = 'weekend' group by interval")
+activity_monitoring_data_replace_with_mean_wkd_wked <- rbind (activity_monitoring_data_replace_with_mean_wkd_avg_by_interval,activity_monitoring_data_replace_with_mean_wked_avg_by_interval)
+
+library(lattice)
+xyplot(Steps_by_day~interval|weekdays_indicator,type="l",layout=c(1,2),col.line=3,data=activity_monitoring_data_replace_with_mean_wkd_wked)
+```
+
+
+For replacement with median, the plot would be:
+
+```{r, echo=FALSE}
+activity_monitoring_data_replace_with_median_wkd <- activity_monitoring_data_replace_with_interval_median
+activity_monitoring_data_replace_with_median_wkd$weekdays_indicator <- lapply (activity_monitoring_data_replace_with_median_wkd$date, weekdays)
+activity_monitoring_data_replace_with_median_wkd$weekdays_indicator <- sub("星期一|星期二|星期三|星期四|星期五","weekday",activity_monitoring_data_replace_with_median_wkd$weekdays_indicator)
+activity_monitoring_data_replace_with_median_wkd$weekdays_indicator <- sub("星期六|星期日","weekend",activity_monitoring_data_replace_with_median_wkd$weekdays_indicator)
+
+activity_monitoring_data_replace_with_median_wkd_avg_by_interval <- sqldf("select avg(steps) as Steps_by_day,interval,weekdays_indicator from activity_monitoring_data_replace_with_median_wkd where weekdays_indicator = 'weekday' group by interval")
+activity_monitoring_data_replace_with_median_wked_avg_by_interval <- sqldf("select avg(steps) as Steps_by_day,interval,weekdays_indicator from activity_monitoring_data_replace_with_median_wkd where weekdays_indicator = 'weekend' group by interval")
+activity_monitoring_data_replace_with_median_wkd_wked <- rbind (activity_monitoring_data_replace_with_median_wkd_avg_by_interval,activity_monitoring_data_replace_with_median_wked_avg_by_interval)
+
+library(lattice)
+xyplot(Steps_by_day~interval|weekdays_indicator,type="l",layout=c(1,2),col.line=3,data=activity_monitoring_data_replace_with_mean_wkd_wked)
+```
