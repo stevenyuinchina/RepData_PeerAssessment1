@@ -1,8 +1,6 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+
 ---
 
 
@@ -10,7 +8,7 @@ output:
 
 Firstly we will load the data from the repository and prepare the data into a format suitable for analysis.
 ``` {r}
-setwd("C:/Users/steven-j.yu/Downloads/Steven's/studying/Data Science - 05 Reproducible Research/Peer assignment 1")
+setwd("C:/Users/steven-j.yu/Downloads/Steven's/Studying/Data Science - 05 Reproducible Research/Peer assignment 1/RepData_PeerAssessment1")
 activity_monitoring_data <- read.csv("activity.csv",na.strings="NA")
 ```
 
